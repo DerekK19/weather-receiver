@@ -68,7 +68,7 @@ struct weather_s
 	uint8_t wind_quadrant;		// 0=north, 1=north north east, ... 15=north north west
 	float wind_speed;			// metres per second
 	float gust_speed;			// metres per second
-	float rain_today;			// millimetres (today, will be reset at midnight)
+	float rain;					// millimetres since the last reading
 };
 typedef struct weather_s weather_t;
 
@@ -94,6 +94,8 @@ uint16_t arg_rev;
 uint16_t arg_fsk;
 
 float rain_at_start_of_day = -1;
+float last_rain = 0.0;
+int CRC_fails = 0;
 
 char *direction_name[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
 
@@ -101,18 +103,24 @@ extern int read_bmp085(float altitude);
 
 /*************** Forward references ***************/
 
-static void get_args(int argc, char *argv[]);
+void led_off(uint8_t pin);
+void led_on(uint8_t pin);
+void get_args(int argc, char *argv[]);
 bool calculate_values(unsigned char *buf, weather_t *weather);
 bool save_values(weather_t *weather);
 void dump_buffer(unsigned char *buffer);
 uint8_t _crc8( uint8_t *addr, uint8_t len);
 int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y);
-//void err_soap(herror_t err);
 
 /*************** Main entry point ***************/
 
 int main(int argc, char *argv[])
 {
+	if(map_peripheral(&gpio) == -1 || map_peripheral(&timer_arm) == -1) {
+		printf("Failed to map the GPIO or TIMER registers into the virtual memory space.\n");
+		return -1;
+	}
+
 #if 0
 	{
 		//Unit test for date interpreter
@@ -134,18 +142,29 @@ int main(int argc, char *argv[])
 		test_crc = _crc8(sample_bytes4, 9);
 		if (sample_bytes4[9] != test_crc)
 			printf("test CRC failed (%02x != %02x)\n", sample_bytes4[9], test_crc);
-		//return -1;
+	}
+#endif
+#if 0
+	{
+		printf("blink led\n");
+    	spi_init();
+    	bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
+		int i;
+		for (i=0; i < 20; i++)
+		{
+			printf("blink\n");
+			led_on(RPI_V2_GPIO_P1_11);
+			sleep(5);
+			led_off(RPI_V2_GPIO_P1_11);
+			sleep(5);
+		}
+		return -1;
 	}
 #endif
 	
 	get_args(argc, argv);
 
 	printf("pi: %d - frequency: %d - bw: %d - rssi: %d - lna: %d - rate: %d\n",rev,f,bw,rssi,lna,rate);
-
-	if(map_peripheral(&gpio) == -1 || map_peripheral(&timer_arm) == -1) {
-		printf("Failed to map the GPIO or TIMER registers into the virtual memory space.\n");
-		return -1;
-	}
 
 	// 0xF90200; // run at 1MHz
 	TIMER_ARM_CONTROL = TIMER_ARM_C_DISABLE |
@@ -158,7 +177,6 @@ int main(int argc, char *argv[])
     struct timeval current_time;
     struct timeval previous_time;
     struct timeval delta_time;
-	time_t last_valid;
 	time_t time_now;
 	struct tm *tm_now;
 	char timestamp[30]; // The timestamp is actually 20 characters
@@ -167,8 +185,7 @@ int main(int argc, char *argv[])
     
     previous_time.tv_sec = 0;
 	
-	printf("\n");
-	printf("Ctrl+C to exit\n\n");
+	printf("\nCtrl+C to exit\n\n");
 
 	// Switch to realtime scheduler
 	scheduler(REALTIME);
@@ -176,6 +193,7 @@ int main(int argc, char *argv[])
 	do
 	{
     	spi_init();
+    	bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
 	    rf_initialize(arg_band, arg_freq, arg_rate, arg_bw, arg_lna, arg_rssi);
 
 		for (i = 0; i < BUFFER_SIZE; i++) buffer[i] = '\0';
@@ -183,28 +201,27 @@ int main(int argc, char *argv[])
 		if (count > 0)
 		{
 
-//			// LED on
-//			*(gpio.addr + (0x1c >> 2)) = 1 << 22;
+			// Weather station packets always start with a 0xa
+			// The Fine Offset device can have a 0x0b packet,
+			// but the WS1093 doesn't seem to use that
+			if ((buffer[0] & 0xf0) != 0xa0) continue;
 
 #if 1
 			dump_buffer(buffer);
 #endif
-			if ((buffer[0] & 0xf0) != 0xa0 &&
-				(buffer[0] & 0xf0) != 0xb0) continue;
-
 			// Does the packet have a valid CRC?
 			uint8_t packet_crc = _crc8(buffer, 9);
 			if (buffer[9] != packet_crc)
 			{
-				// dump_buffer(buffer);
 				printf("\033[31mCRC failed (%02x != %02x)\033[37m\n", buffer[9], packet_crc);
 				sleep(10); // Give the receiver time to re-cycle
+				if (CRC_fails++ > 5) return 1; // We are getting too many errors
 				continue;
 			}
 			
 			// Get the current time, and record how long it was since we last had a reading
 			gettimeofday(&current_time, NULL);			
-			if (previous_time.tv_sec == 0) {previous_time = current_time; last_valid = time(0);}
+			if (previous_time.tv_sec == 0) {previous_time = current_time;}
 			timeval_subtract(&delta_time, &current_time, &previous_time);
 			previous_time = current_time;
 			time_now = time(0);
@@ -218,18 +235,17 @@ int main(int argc, char *argv[])
 				((station_code >> 8) != buffer[0] || (station_code & 0x00f0) != (buffer[1] & 0xf0)))
 				continue;
 			
+			led_on(RPI_V2_GPIO_P1_11);
+
 			// If we haven't saved a station id yet, do it now
 			if (station_code == 0)
 			{
 				station_code = buffer[0] << 8 | (buffer[1] & 0xf0);
 				printf("Station Id: %04X\n", station_code >> 4);
 			}
-
-			// This is most likely a valid weather station packet
-			last_valid = time(0);
-			
+	
 			// Reset the daily rain counter if we have past midnight
-			if (rain_at_start_of_day > 0 && tm_now->tm_hour == 0) rain_at_start_of_day = -1;
+			if (rain_at_start_of_day > 0 && tm_now->tm_hour == 0) rain_at_start_of_day = -1; //DK. NOPE, need a new flag here...
 
 			// at this point, we can do other stuff that requires the RT scheduler
 			
@@ -240,21 +256,23 @@ int main(int argc, char *argv[])
 			// Decode a weather packet
 			if ((buffer[0] & 0xf0) == 0xa0)
 			{
-				if (calculate_values(buffer, &weather))
+				if (!calculate_values(buffer, &weather))
 				{
-					save_values(&weather);
+					printf("\033[31mUnlikely packet!\033[37m\n");
+					return 2;
 				}
+				CRC_fails = 0;
+				save_values(&weather);
 				printf("\n");
 			}
+
+			led_off(RPI_V2_GPIO_P1_11);
 			
 			scheduler(STANDARD);
 
-			sleep(10); // sleep 45 seconds, since weather station signals only come in every 48 seconds
+			sleep(35); // sleep 35 seconds, since weather station signals only come in every 48 seconds
 
 			scheduler(REALTIME);
-
-//			// LED off
-//			*(gpio.addr + (0x28 >> 2)) = 1 << 22;
 		} // Handle a packet
 		
 	} while (1); // Ctrl+C to exit for now...
@@ -266,6 +284,17 @@ int main(int argc, char *argv[])
 }
 
 /*************** Private functions ***************/
+
+void led_off(uint8_t pin)
+{
+	bcm2835_gpio_clr(pin);
+}
+
+void led_on(uint8_t pin)
+{
+	bcm2835_gpio_set(pin);
+}
+
 /*****************************************************************************
 * Function:   	get_args
 *
@@ -274,7 +303,7 @@ int main(int argc, char *argv[])
 * Output:
 *
 ******************************************************************************/
-static void get_args(int argc, char *argv[])
+void get_args(int argc, char *argv[])
 {
     int opt;
 
@@ -513,21 +542,31 @@ bool calculate_values(unsigned char *buf, weather_t *weather)
 	float rain_mm = (float)rain_raw * 0.3f;
 	char *direction_str = direction_name[direction];
 
-	if (rain_at_start_of_day < 0) {printf("Rain Reset\n"); rain_at_start_of_day = rain_mm;}
-	
+	if (rain_at_start_of_day < 0) {printf("Rain Reset\n"); rain_at_start_of_day = rain_mm; last_rain = rain_raw;}
+
+	float this_rain = (rain_raw - last_rain) * 0.3f;
+	last_rain = rain_raw;
+
 	printf("Station Id: %04X\n", device_id);
 	printf("Temperature: \033[32m%0.1fc\033[37m, Humidity: \033[32m%d%%\033[37m\n", temperature_c, humidity);
 	printf("Wind speed: \033[32m%0.2f m/s\033[37m, Gust Speed \033[32m%0.2f m/s\033[37m, \033[32m%s\033[37m\n", wind_avg_ms, wind_gust_ms, direction_str);
 	printf("Wind speed: %0.1f mph, Gust Speed %0.1f mph, %s\n", wind_avg_mph, wind_gust_mph, direction_str);
 	printf("Wind speed: %0.1f knots, Gust Speed %0.1f knots, %s\n", wind_avg_knot, wind_gust_knot, direction_str);
-	printf("Rain today: \033[32m%0.1f mm\033[37m\n", rain_mm - rain_at_start_of_day);
+	printf("Rain: \033[32m%0.1f mm\033[37m\n", this_rain);
+	
+	// Do some checking, since we can get unreasonable values even with a good CRC
+	if (this_rain > 10.0 ||					// 10 mm of rain in 48 seconds is very unlikely
+		humidity < 20.0 ||					// Humidity is never this low (26% is low enough)
+		humidity > 100.0 ||					// And humidity is never > 100%
+		temperature_c > 40.0 ||				// Temperatures here are between 2 and 40 degrees c
+		temperature_c < 2) return false;
 	
 	weather->temperature = temperature_c;
 	weather->humidity = humidity;
 	weather->wind_quadrant = direction;
 	weather->wind_speed = wind_avg_ms;
 	weather->gust_speed = wind_gust_ms;
-	weather->rain_today = rain_mm - rain_at_start_of_day;
+	weather->rain = this_rain;
 	
 	return true;
 }
@@ -551,7 +590,7 @@ bool save_values(weather_t *weather)
 	sprintf(string_direction, "%1d", weather->wind_quadrant);
 	sprintf(string_speed, "%1.2f", weather->wind_speed);
 	sprintf(string_gust, "%1.2f", weather->gust_speed);
-	sprintf(string_rain, "%1.1f", weather->rain_today);
+	sprintf(string_rain, "%1.1f", weather->rain);
 
 	g_type_init ();
 
@@ -571,6 +610,7 @@ bool save_values(weather_t *weather)
 	bool status = rest_proxy_call_run (call, NULL, &error);
 	
 	g_object_unref (call);
+	g_object_unref (proxy);
 
 	if (!status)
   	{
@@ -677,14 +717,3 @@ int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval 
 	/* Return 1 if result is negative. */
 	return x->tv_sec < y->tv_sec;
  }
-
-/*
-void err_soap(herror_t err)
-{
-    if(err==H_OK) return;
-    printf("%s():%s [%d]\n",herror_func(err),
-                            herror_message(err),
-                            herror_code(err));
-    herror_release(err);
-}
-*/
