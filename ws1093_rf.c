@@ -585,6 +585,16 @@ bool save_values(weather_t *weather)
 	RestProxyCall *call;
 	GError *error = NULL;
 	
+	FILE *fp = fopen("/tmp/current.json","w");
+	fprintf(fp, "{\"Temperature\":\"%2.2f\",\"Humidity\":\"%2.2f\",\"Rainfall\":\"%2.2f\",\"Wind\":\"%2.2f\",\"Gust\":\"%2.2f\",\"Quadrant\":\"%1d\"}",
+				 weather->temperature,
+				 (float)weather->humidity,
+				 weather->rain,
+				 weather->wind_speed,
+				 weather->gust_speed,
+				 weather->wind_quadrant);
+	fclose(fp);
+	
 	sprintf(string_temperature, "%1.1f", weather->temperature);
 	sprintf(string_humidity, "%1d", weather->humidity);
 	sprintf(string_direction, "%1d", weather->wind_quadrant);
@@ -599,6 +609,7 @@ bool save_values(weather_t *weather)
 	rest_proxy_call_set_function (call, "data/add");
 	rest_proxy_call_set_method (call, "GET");
 	rest_proxy_call_add_params (call,
+								"sensor", "1",
 							  	"temperature", string_temperature,
 								"humidity", string_humidity,
 								"direction", string_direction,
