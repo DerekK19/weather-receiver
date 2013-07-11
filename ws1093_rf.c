@@ -38,13 +38,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <math.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
-//#include <libcsoap/soap-client.h>
 #include <rest/rest-proxy.h>
 #include <sys/time.h>
 #include <time.h>
@@ -109,6 +109,7 @@ void get_args(int argc, char *argv[]);
 bool calculate_values(unsigned char *buf, weather_t *weather);
 bool save_values(weather_t *weather);
 void dump_buffer(unsigned char *buffer);
+void log_current(char *format, ...);
 uint8_t _crc8( uint8_t *addr, uint8_t len);
 int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y);
 
@@ -547,6 +548,19 @@ bool calculate_values(unsigned char *buf, weather_t *weather)
 	float this_rain = (rain_raw - last_rain) * 0.3f;
 	last_rain = rain_raw;
 
+	log_current("Station Id: %04X\n"
+	"Temperature: %0.1fc, Humidity: %d%%\n"
+	"Wind speed: %0.2f m/s, Gust Speed %0.2f m/s, %s\n"
+	"Wind speed: %0.1f mph, Gust Speed %0.1f mph, %s\n"
+	"Wind speed: %0.1f knots, Gust Speed %0.1f knots, %s\n"
+	"Rain: %0.1f mm\n",
+	 device_id,
+	 temperature_c, humidity,
+	 wind_avg_ms, wind_gust_ms, direction_str,
+	 wind_avg_mph, wind_gust_mph, direction_str,
+	 wind_avg_knot, wind_gust_knot, direction_str,
+	 this_rain);
+	
 	printf("Station Id: %04X\n", device_id);
 	printf("Temperature: \033[32m%0.1fc\033[37m, Humidity: \033[32m%d%%\033[37m\n", temperature_c, humidity);
 	printf("Wind speed: \033[32m%0.2f m/s\033[37m, Gust Speed \033[32m%0.2f m/s\033[37m, \033[32m%s\033[37m\n", wind_avg_ms, wind_gust_ms, direction_str);
@@ -632,6 +646,19 @@ bool save_values(weather_t *weather)
 	printf("Sent\n");
 
 	return true;
+}
+
+void log_current(char *format, ...)
+{
+	va_list arg_list;
+
+	va_start(arg_list, format);
+
+	FILE *fp = fopen("/tmp/current.txt","w");
+	vfprintf(fp, format, arg_list);
+	fclose(fp);
+
+	va_end(arg_list);
 }
 
 void dump_buffer(unsigned char *buffer)

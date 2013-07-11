@@ -21,3 +21,7 @@ bmp085.o: bmp085.c
 
 clean:
 	rm -f ws1093_rf.o bcm2835.o ws_bcm2835.o rfm.o bmp085.o ws1093_rf
+
+install:
+	cp ws1093_rf /usr/local/bin
+	cp receiver.sh /usr/local/bin
