@@ -655,6 +655,11 @@ void log_current(char *format, ...)
 	va_start(arg_list, format);
 
 	FILE *fp = fopen("/tmp/current.txt","w");
+	time_t time_now = time(0);
+	struct tm *tm_now = localtime(&time_now);
+	char timestamp[30];
+	strftime(timestamp, 30, "%d %b %Y %H:%M:%S", tm_now);
+	fprintf(fp, "%s\n", timestamp);
 	vfprintf(fp, format, arg_list);
 	fclose(fp);
 

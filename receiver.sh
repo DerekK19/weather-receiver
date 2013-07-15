@@ -5,8 +5,7 @@
 # Derek Knight
 # July 2013
 #
-while $(sudo /usr/local/bin/ws1093_rf) -ge 0
-do
+until sudo /usr/local/bin/ws1093_rf; do
 	sleep 5
 	echo Restarting
 done
