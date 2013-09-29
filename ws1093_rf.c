@@ -97,6 +97,10 @@ float rain_at_start_of_day = -1;
 float last_rain = 0.0;
 int CRC_fails = 0;
 
+#define LED_RED RPI_V2_GPIO_P1_11
+#define LED_AMBER RPI_V2_GPIO_P1_12
+#define LED_GREEN RPI_V2_GPIO_P1_13
+
 char *direction_name[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
 
 extern int read_bmp085(float altitude);
@@ -148,16 +152,28 @@ int main(int argc, char *argv[])
 #if 0
 	{
 		printf("blink led\n");
-    	spi_init();
-    	bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
+	    	spi_init();
+ 	   	bcm2835_gpio_fsel(LED_RED, BCM2835_GPIO_FSEL_OUTP);
+  	  	bcm2835_gpio_fsel(LED_AMBER, BCM2835_GPIO_FSEL_OUTP);
+   	 	bcm2835_gpio_fsel(LED_GREEN, BCM2835_GPIO_FSEL_OUTP);
 		int i;
 		for (i=0; i < 20; i++)
 		{
-			printf("blink\n");
-			led_on(RPI_V2_GPIO_P1_11);
-			sleep(5);
-			led_off(RPI_V2_GPIO_P1_11);
-			sleep(5);
+			printf("blink red\n");
+			led_on(LED_RED);
+			sleep(1);
+			led_off(LED_RED);
+			sleep(1);
+			printf("blink amber\n");
+			led_on(LED_AMBER);
+			sleep(1);
+			led_off(LED_AMBER);
+			sleep(1);
+			printf("blink green\n");
+			led_on(LED_GREEN);
+			sleep(1);
+			led_off(LED_GREEN);
+			sleep(1);
 		}
 		return -1;
 	}
@@ -193,8 +209,13 @@ int main(int argc, char *argv[])
 	uint16_t count;
 	do
 	{
-    	spi_init();
-    	bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
+    	    spi_init();
+    	    bcm2835_gpio_fsel(LED_RED, BCM2835_GPIO_FSEL_OUTP);
+    	    bcm2835_gpio_fsel(LED_AMBER, BCM2835_GPIO_FSEL_OUTP);
+    	    bcm2835_gpio_fsel(LED_GREEN, BCM2835_GPIO_FSEL_OUTP);
+	    led_off(LED_RED);
+	    led_off(LED_AMBER);
+	    led_off(LED_GREEN);
 	    rf_initialize(arg_band, arg_freq, arg_rate, arg_bw, arg_lna, arg_rssi);
 
 		for (i = 0; i < BUFFER_SIZE; i++) buffer[i] = '\0';
@@ -214,8 +235,11 @@ int main(int argc, char *argv[])
 			uint8_t packet_crc = _crc8(buffer, 9);
 			if (buffer[9] != packet_crc)
 			{
+				led_on(LED_AMBER);
 				printf("\033[31mCRC failed (%02x != %02x)\033[37m\n", buffer[9], packet_crc);
-				sleep(10); // Give the receiver time to re-cycle
+				sleep(2);
+				led_off(LED_AMBER);
+				sleep(8); // Give the receiver time to re-cycle
 				if (CRC_fails++ > 5) return 1; // We are getting too many errors
 				continue;
 			}
@@ -236,7 +260,7 @@ int main(int argc, char *argv[])
 				((station_code >> 8) != buffer[0] || (station_code & 0x00f0) != (buffer[1] & 0xf0)))
 				continue;
 			
-			led_on(RPI_V2_GPIO_P1_11);
+			led_on(LED_GREEN);
 
 			// If we haven't saved a station id yet, do it now
 			if (station_code == 0)
@@ -259,7 +283,10 @@ int main(int argc, char *argv[])
 			{
 				if (!calculate_values(buffer, &weather))
 				{
+					led_on(LED_RED);
 					printf("\033[31mUnlikely packet!\033[37m\n");
+					sleep(2);
+					led_off(LED_RED);
 					return 2;
 				}
 				CRC_fails = 0;
@@ -267,7 +294,7 @@ int main(int argc, char *argv[])
 				printf("\n");
 			}
 
-			led_off(RPI_V2_GPIO_P1_11);
+			led_off(LED_GREEN);
 			
 			scheduler(STANDARD);
 
