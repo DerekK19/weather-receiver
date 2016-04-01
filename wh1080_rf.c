@@ -82,7 +82,7 @@ static uint16_t send_command16(int fd, uint16_t cmd)
 	tx[0] = buf[1];
 	tx[1] = buf[0];
 
-	//printf("SPI %02x%02x\n", buf[1], buf[0]);
+	printf("SPI %02x%02x\n", buf[1], buf[0]);
 
 	uint8_t rx[2] = {0, 0};
 	struct spi_ioc_transfer tr = {
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 	printf("SPI: mode %d, %d-bit, %d KHz\n", mode, bits, speed/1000);
 
 	// LED on
-	*(gpio.addr + (0x1c >> 2)) = 1 << 22;
+	*(gpio.addr + (0x1c >> 2)) = 1 << 21;
 
 	// Reset the module? Maybe use software reset if needed.
 	//send_command(fd, cmd_fifo); // in case reset sensitivity is low
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 	usleep(100000);
 
 	// LED off
-	*(gpio.addr + (0x28 >> 2)) = 1 << 22;
+	*(gpio.addr + (0x28 >> 2)) = 1 << 21;
 
 	send_command16(fd, cmd_status);
 	send_command16(fd, cmd_config);
