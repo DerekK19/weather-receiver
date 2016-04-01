@@ -82,7 +82,7 @@ static uint16_t send_command16(int fd, uint16_t cmd)
 	tx[0] = buf[1];
 	tx[1] = buf[0];
 
-	printf("SPI %02x%02x\n", buf[1], buf[0]);
+	//printf("SPI %02x%02x\n", buf[1], buf[0]);
 
 	uint8_t rx[2] = {0, 0};
 	struct spi_ioc_transfer tr = {
