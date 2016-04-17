@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
 		if (count > 0)
 		{
 
-printf("%c", buffer[0]);
+printf("%x ", buffer[0]);
 			// Weather station packets always start with a 0xa
 			// The Fine Offset device can have a 0x0b packet,
 			// but the WS1093 doesn't seem to use that
@@ -340,32 +340,32 @@ void get_args(int argc, char *argv[])
     fsk = 1;
 
 	// process all passed options
-    while ((opt = getopt(argc, argv, "f:l:b:r:v:d:x:s")) != -1) {
+    while ((opt = getopt(argc, argv, "f:l:b:r:v:d:x:s:h")) != -1) {
         switch (opt) {
         case 'f':
-        	band = atoi(optarg);
+            band = atoi(optarg);
             break;
         case 'l':
-        	lna = atoi(optarg);
+            lna = atoi(optarg);
             break;
         case 'b':
-        	bw = atoi(optarg);
+            bw = atoi(optarg);
             break;
         case 'r':
-        	rssi = atoi(optarg);
-	    	break;
+            rssi = atoi(optarg);
+	    break;
         case 'v':
-        	rev = atoi(optarg);
+            rev = atoi(optarg);
             break;
         case 'd':
-        	rate = atoi(optarg);
+            rate = atoi(optarg);
             break;
-		case 's':
-			sample = 1;
-	    	break;
+	case 's':
+	    sample = 1;
+	    break;
         case 'h':
         default:
-            printf("Usage: wh1080_rf [OPTIONS]\n");
+            printf("Usage: ws1093_rf [OPTIONS]\n");
             printf("  -f   Frequency\n");
             printf("       315  \n");
             printf("       433  (default)\n");

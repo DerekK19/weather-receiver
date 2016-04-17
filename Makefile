@@ -23,8 +23,7 @@ rfm.o: rfm.c rfm.h rfm_commands.h
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f ws1093_rf.o bcm2835.o ws_bcm2835.o rfm.o bmp085.o ws1093_rf
-	rm -f wh1080_rf.o wh1080_rf
+	rm -f *.o ws1093_rf wh1080_rf
 
 install: all
 	cp ws1093_rf /usr/local/bin
