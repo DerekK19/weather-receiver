@@ -4,8 +4,8 @@ LFLAGS=`pkg-config --libs glib-2.0` `pkg-config --libs rest-0.7`
 
 all: ws1093_rf wh1080_rf
 
-ws1093_rf: ws1093_rf.o bcm2835.o rfm.o bmp085.o
-	$(CC) $(LFLAGS) -lm ws1093_rf.o bcm2835.o rfm.o bmp085.o -o ws1093_rf
+ws1093_rf: ws1093_rf.o fo_bcm2835.o rfm.o bmp085.o
+	$(CC) $(LFLAGS) -lm ws1093_rf.o fo_bcm2835.o rfm.o bmp085.o -lbcm2835 -o ws1093_rf
 
 ws1093_rf.o: ws1093_rf.c rfm.h rfm_commands.h
 	$(CC) $(CFLAGS) ws1093_rf.c
@@ -16,14 +16,11 @@ wh1080_rf: wh1080_rf.o bcm2835.o rfm.o bmp085.o
 wh1080_rf.o: wh1080_rf.c wh1080_rf.h rfm01.h bcm2835.h
 	$(CC) $(CFLAGS) wh1080_rf.c
 
-bcm2835.o: bcm2835.c
-	$(CC) $(CFLAGS) bcm2835.c
-
 rfm.o: rfm.c rfm.h rfm_commands.h
 	$(CC) $(CFLAGS) rfm.c
 
-bmp085.o: bmp085.c
-	$(CC) $(CFLAGS) bmp085.c
+.c.o:
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
 	rm -f ws1093_rf.o bcm2835.o ws_bcm2835.o rfm.o bmp085.o ws1093_rf

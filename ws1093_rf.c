@@ -51,9 +51,11 @@
 #include <string.h>
 
 #include "ws1093_rf.h"
-#include "bcm2835.h"
 #include "rfm.h"
 #include "rfm_commands.h"
+
+// C library for Broadcom BCM2835 (http://www.open.com.au/mikem/bcm2835)
+#include <bcm2835.h>
 
 // The time to expect the whole packet to arrive in (initially this was set to 5000)
 // Since the ARM time is running at 1Mhz, this is millionths of a second (microseconds)
@@ -121,11 +123,6 @@ int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval 
 
 int main(int argc, char *argv[])
 {
-	if(map_peripheral(&gpio) == -1 || map_peripheral(&timer_arm) == -1) {
-		printf("Failed to map the GPIO or TIMER registers into the virtual memory space.\n");
-		return -1;
-	}
-
 #if 0
 	{
 		//Unit test for date interpreter
@@ -184,11 +181,11 @@ int main(int argc, char *argv[])
 	printf("pi: %d - frequency: %d - bw: %d - rssi: %d - lna: %d - rate: %d\n",rev,f,bw,rssi,lna,rate);
 
 	// 0xF90200; // run at 1MHz
-	TIMER_ARM_CONTROL = TIMER_ARM_C_DISABLE |
-						TIMER_ARM_C_FREE_EN |
-						TIMER_ARM_C_16BIT |
-						TIMER_ARM_C_PS1 |
-						TIMER_ARM_C_FPS(0xf9);
+//	TIMER_ARM_CONTROL = TIMER_ARM_C_DISABLE |
+//						TIMER_ARM_C_FREE_EN |
+//						TIMER_ARM_C_16BIT |
+//						TIMER_ARM_C_PS1 |
+//						TIMER_ARM_C_FPS(0xf9);
 	
 	uint16_t station_code = 0l;
     struct timeval current_time;
@@ -223,11 +220,11 @@ int main(int argc, char *argv[])
 		if (count > 0)
 		{
 
+printf("%c", buffer[0]);
 			// Weather station packets always start with a 0xa
 			// The Fine Offset device can have a 0x0b packet,
 			// but the WS1093 doesn't seem to use that
 			if ((buffer[0] & 0xf0) != 0xa0) continue;
-
 #if 1
 			dump_buffer(buffer);
 #endif
@@ -305,9 +302,6 @@ int main(int argc, char *argv[])
 		
 	} while (1); // Ctrl+C to exit for now...
 
-	unmap_peripheral(&gpio);
-	unmap_peripheral(&timer_arm);
-	
 	return 0;
 }
 
@@ -377,7 +371,7 @@ void get_args(int argc, char *argv[])
             printf("       433  (default)\n");
             printf("       868  \n");
             printf("       915  \n");
-            printf("  -l  low noice amplifier\n");
+            printf("  -l  low noise amplifier\n");
             printf("       0  \n");
             printf("       6  (default)\n");
             printf("       14  \n");

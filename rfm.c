@@ -15,7 +15,7 @@
 #include "rfm_commands.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "bcm2835.h"
+#include <bcm2835.h>
 #include <sched.h>
 #include <unistd.h>
 #include <string.h>
