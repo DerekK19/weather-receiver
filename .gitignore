@@ -15,5 +15,9 @@
 *.exe
 *.out
 *.app
-
+wh1080_rf
 ws1093_rf
+
+# emacs files
+.*~
+*~

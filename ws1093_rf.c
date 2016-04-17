@@ -335,11 +335,11 @@ void get_args(int argc, char *argv[])
 {
     int opt;
 
-	// set default values
+    // set default values
     f = 433;
     lna = 6;
-    bw = 134;
-    rssi = 79;
+    bw = 200;
+    rssi = 85;
     rev = 2;
     rate = 17241;
     sample = 0;

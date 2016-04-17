@@ -139,7 +139,33 @@
 #endif
 
 #ifdef RFM12B
-	#define P16			(1 << 10)
+
+	#define CONFIG_EF   (3 << 6)
+	
+	#define BAND_315    (0 << 4)
+	#define BAND_433    (1 << 4)
+	#define BAND_868    (2 << 4)
+	#define BAND_915    (3 << 4)
+
+	// Loading capacitor
+	#define LOAD_CAP_8C5	(0)
+	#define LOAD_CAP_9C0	(1)
+	#define LOAD_CAP_9C5	(2)
+	#define LOAD_CAP_10C0	(3)
+	#define LOAD_CAP_10C5	(4)
+	#define LOAD_CAP_11C0	(5)
+	#define LOAD_CAP_11C5	(6)
+	#define LOAD_CAP_12C0	(7)
+	#define LOAD_CAP_12C5	(8)
+	#define LOAD_CAP_13C0	(9)
+	#define LOAD_CAP_13C5	(10)
+	#define LOAD_CAP_14C0	(11)
+	#define LOAD_CAP_14C5	(12)
+	#define LOAD_CAP_15C0	(13)
+	#define LOAD_CAP_15C5	(14)
+	#define LOAD_CAP_16C0	(15)
+
+	#define P16		(1 << 10)
 
 	#define VDI_FAST	(0 << 8)	// CR_LOCK && DRSSI && DQD
 	#define VDI_MEDIUM	(1 << 8)	// CR_LOCK && (DRSSI | DQD)
@@ -279,7 +305,7 @@
 #define L0R85	{"LNA_LO,RSSI_85 ",LNA_LOW,RSSI_85}
 #define L0R91	{"LNA_LO,RSSI_91 ",LNA_LOW,RSSI_91}
 #define L0R97	{"LNA_LO,RSSI_97 ",LNA_LOW,RSSI_97}
-#define L0R103	{"LNA_LO,RSSI_103",LNA_MEDIUM,RSSI_103}
+#define L0R103	{"LNA_LO,RSSI_103",LNA_LOW,RSSI_103}
 #define L6R73	{"LNA_MD,RSSI_73 ",LNA_MEDIUM,RSSI_73}
 #define L6R79	{"LNA_MD,RSSI_79 ",LNA_MEDIUM,RSSI_79}
 #define L6R85	{"LNA_MD,RSSI_85 ",LNA_MEDIUM,RSSI_85}

@@ -82,7 +82,7 @@ static uint16_t send_command16(int fd, uint16_t cmd)
 	tx[0] = buf[1];
 	tx[1] = buf[0];
 
-	//printf("SPI %02x%02x\n", buf[1], buf[0]);
+	//if (buf[0] || buf[1]) printf("SPI %02x%02x\n", buf[1], buf[0]);
 
 	uint8_t rx[2] = {0, 0};
 	struct spi_ioc_transfer tr = {
@@ -106,8 +106,8 @@ uint16_t cmd_reset	= CMD_RESET;
 uint16_t cmd_status = CMD_STATUS;
 
 // Expected bit rate: 95 = 1959, 99 = 1700, 9c = 1500, a1 = 1268, aa = 1000, b8 - 756, d5 = 500
-uint16_t cmd_drate = CMD_DRATE|0xaa;	// drate is c8xx rather than c6xx
-uint16_t cmd_freq	= CMD_FREQ|0x620; // 433.92 MHz
+uint16_t cmd_drate      = CMD_DRATE|0xb8;	// drate is c8xx rather than c6xx (was 0xaa)
+uint16_t cmd_freq	= CMD_FREQ|0x620; 	// 433.92 MHz
 
 #ifdef RFM01
 	uint16_t cmd_afc	= CMD_AFC|AFC_ON|AFC_OUT_ON|AFC_MANUAL|AFC_FINE|AFC_RL_7;
@@ -120,16 +120,17 @@ uint16_t cmd_freq	= CMD_FREQ|0x620; // 433.92 MHz
 #endif
 
 #ifdef RFM12B
-	uint16_t cmd_config	= 0x8017;
+//	uint16_t cmd_config	= 0x8017;
+	uint16_t cmd_config	= CMD_CONFIG|CONFIG_EF|BAND_433|LOAD_CAP_12C5;
 	uint16_t cmd_power	= 0x8281; // RFM01 doesn't support this
 	uint16_t cmd_sync	= 0xce55;
-	uint16_t cmd_afc	= 0xc407; // or C400 for no AFC. C6xx on RFM01
-	uint16_t cmd_dcycle = 0xc800;
+	uint16_t cmd_afc	= 0xc407; //was 0xc407. Or C400 for no AFC. C6xx on RFM01
+	uint16_t cmd_dcycle 	= 0xc800;
 	uint16_t cmd_pll	= 0xcc1f;
 	uint16_t cmd_fifo	= 0xca8a; // CExx rather than CAxx on RFM01
 
 	uint16_t cmd_dfilter = 0xc260;
-	uint16_t cmd_rcon = (CMD_RCON|P16|VDI_MEDIUM|LNA_MEDIUM|RSSI_97|BW_340);
+	uint16_t cmd_rcon = (CMD_RCON|P16|VDI_FAST|LNA_LOW|RSSI_85|BW_200);
 #endif
 
 void strobe_afc(int fd) {
@@ -328,6 +329,7 @@ int main(int argc, char *argv[])
 				rssitime_buf[count] = rssitime - oldrssitime;
 				if(++count == 500)
 				count = 499;
+printf(count%2 ? "-" : "|");
 			}
 			oldrssi = rssi;
 			oldrssitime = rssitime;
@@ -339,6 +341,8 @@ int main(int argc, char *argv[])
 		if(!timeout && (now - oldrssitime) > 5000) { // && count > 0
 
 			uint8_t sig_matched = 0;
+
+printf("count %d", count);
 		
 			if(count > 60) { // then maybe something at least interesting
 				// Look for device_id
